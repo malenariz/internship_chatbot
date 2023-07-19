@@ -29,7 +29,7 @@ export class AppComponent implements AfterViewChecked {
   messages: Messages = [
     {
       type: 'bot',
-      value: 'Hello! I am an Aids. I can help you find jobs and internships. How can I assist you today?'
+      value: 'Hello! I am Aids. I can help you find jobs and internships. Type "Get started" to begin.'
     },
   ];
   loading = false;
@@ -48,7 +48,6 @@ export class AppComponent implements AfterViewChecked {
       this.enableLoading();
       this.svc.getResponse(value).pipe(first()).subscribe(
         (val) => {
-          console.log(val)
           this.messages.push({
             type: 'bot',
             value: val

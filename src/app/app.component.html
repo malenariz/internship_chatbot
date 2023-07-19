@@ -1,43 +1,35 @@
-<form 
-[formGroup]="form" 
-(ngSubmit)="send()">
-  <mat-card
-    class="full-height"
-    fxLayout="column"
-    fxLayoutAlign="center center"
-  >
-    <h1 fxFlex="5%">Intern Bot</h1>
-    <div #messageContainer fxFlex class="full-width message-container mat-elevation-z0" fxLayout="column" fxLayoutGap="10px">
-      <div *ngFor="let msg of messages; let i = index" fxLayout="row" fxLayoutAlign="space-between center">
-        <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="center start" *ngIf="msg.type === 'bot'; else leftEmpty" fxFlex="50%">
-          <div class="small-text" *ngIf="i === 0 || (i > 0 && messages[i - 1].type !== 'bot')">Aids</div>
-          <mat-card class="bot-input" >
-            {{ msg.value }}
-          </mat-card>
+<form [formGroup]="form" (ngSubmit)="send()">
+    <mat-card class="full-height" fxLayout="column" fxLayoutAlign="center center">
+        <h1 fxFlex="5%">Chatbot Name</h1>
+        <div #messageContainer fxFlex class="full-width message-container mat-elevation-z0" fxLayout="column" fxLayoutGap="10px">
+            <div *ngFor="let msg of messages; let i = index" fxLayout="row" fxLayoutAlign="space-between center">
+                <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="center start" *ngIf="msg.type === 'bot'; else leftEmpty" fxFlex="50%">
+                    <div class="small-text" *ngIf="i === 0 || (i > 0 && messages[i - 1].type !== 'bot')">Aids</div>
+                    <mat-card class="bot-input" [innerHtml]="msg.value"></mat-card>
+                </div>
+                <ng-template #leftEmpty>
+                    <div fxFlex="50%"></div>
+                </ng-template>
+                <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="center end" *ngIf="msg.type === 'user'; else rightEmpty" fxFlex="50%">
+                    <div class="small-text" *ngIf="i === 0 || (i > 0 && messages[i - 1].type !== 'user')">User</div>
+                    <mat-card class="user-input">
+                        {{ msg.value }}
+                    </mat-card>
+                </div>
+                <ng-template #rightEmpty>
+                    <div fxFlex="50%"></div>
+                </ng-template>
+            </div>
+            <div *ngIf="loading" class="typing">Aids is typing...</div>
         </div>
-        <ng-template #leftEmpty>
-          <div fxFlex="50%"></div>
-        </ng-template>
-        <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="center end" *ngIf="msg.type === 'user'; else rightEmpty" fxFlex="50%">
-          <div class="small-text" *ngIf="i === 0 || (i > 0 && messages[i - 1].type !== 'user')">User</div>
-          <mat-card class="user-input" >
-            {{ msg.value }}
-          </mat-card>
-        </div>
-        <ng-template #rightEmpty>
-          <div fxFlex="50%"></div>
-        </ng-template>
-      </div>
-      <div *ngIf="loading" class="typing">Aids is typing...</div>
-    </div>
-    <div fxFlex="10%" class="full-width" fxLayout="row" fxLayoutAlign="center center" fxLayoutGap="14px">
-      <mat-form-field color="accent" appearance="outline" fxFlex>
-        <input matInput formControlName="message" placeholder="Send a message" />
-      </mat-form-field>
-      <button mat-icon-button type="submit" fxFlex="48px">
+        <div fxFlex="10%" class="full-width" fxLayout="row" fxLayoutAlign="center center" fxLayoutGap="14px">
+            <mat-form-field color="accent" appearance="outline" fxFlex>
+                <input matInput formControlName="message" placeholder="Send a message" />
+            </mat-form-field>
+            <button mat-icon-button type="submit" fxFlex="48px">
         <mat-icon>send</mat-icon>
       </button>
-    </div>
-  </mat-card>
+        </div>
+    </mat-card>
 
 </form>
