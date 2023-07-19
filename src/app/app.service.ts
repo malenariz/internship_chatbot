@@ -13,10 +13,7 @@ export class AppService {
     return this.http.post<string>('http://localhost:5000/api/ask', {
       prompt
     }).pipe(
-      map((response) => {
-        console.log(response);
-        return 'test'
-      }),
+      map((response) => response),
       catchError(() => ['Something went wrong.'])
     );
   }
