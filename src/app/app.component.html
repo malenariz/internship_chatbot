@@ -1,6 +1,6 @@
 <form [formGroup]="form" (ngSubmit)="send()">
     <mat-card class="full-height" fxLayout="column" fxLayoutAlign="center center">
-        <h1 fxFlex="5%">Chatbot Name</h1>
+        <h1 fxFlex="5%"><b>AIDS: </b> <b>A</b>ssistant for <b>I</b>nternship & <b>C</b>areer <b>D</b>iscovery <b>S</b>ystem</h1>
         <div #messageContainer fxFlex class="full-width message-container mat-elevation-z0" fxLayout="column" fxLayoutGap="10px">
             <div *ngFor="let msg of messages; let i = index" fxLayout="row" fxLayoutAlign="space-between center">
                 <div fxLayout="column" fxLayoutGap="5px" fxLayoutAlign="center start" *ngIf="msg.type === 'bot'; else leftEmpty" fxFlex="50%">

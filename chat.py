@@ -1,5 +1,4 @@
 from sentence_transformers import SentenceTransformer, util
-import spacy
 from dict_keywords import keywords 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -7,24 +6,17 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)
 
-nlp = spacy.load("en_core_web_sm")
 
-# Load your data
 with open('links_and_captions.txt', 'r', encoding='utf8') as f:
     lines = f.readlines()
 
-# Each job is represented by two lines: link and caption
+
 jobs = [{'link': lines[i].strip(), 'caption': lines[i+1].strip() if i+1 < len(lines) else ""} for i in range(0, len(lines), 2)]
 
-
-# Set up the chatbot
-# Load the BERT model
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
-# Create a list of all job descriptions
 job_descriptions = [job['caption'] for job in jobs]
 
-# Convert the job descriptions to vectors
 job_vectors = model.encode(job_descriptions, convert_to_tensor=True)
 
 returned_job_indices = []
@@ -33,101 +25,97 @@ last_query = ""
 
 def search_jobs(query):
     global last_query
-
-    # Determine which, if any, keys from your dictionary are in the query
-    query_words = set(query.upper().split())  # This assumes that the query is a single string of words separated by spaces
+    cos_similarity_threshold = 0.3
+    query_words = set(query.upper().split())
     keyword_keys = [key for key in keywords if key in query_words]
     
-    # Add the additional keywords associated with the found keys
     for key in keyword_keys:
         query += " " + " ".join(keywords[key])
 
-    last_query = query
-
-    # Convert the query to a vector
     query_vector = model.encode(query, convert_to_tensor=True)
-
-    # Compute cosine similarities between the query and all job descriptions
     cos_similarities = util.pytorch_cos_sim(query_vector, job_vectors)
-
-    # Convert the cos_similarities tensor to a Python list
     cos_similarities_list = cos_similarities.tolist()[0]
 
-    # Set the similarities of the jobs we've already returned to -1
     for index in returned_job_indices:
         if index < len(cos_similarities_list):
             cos_similarities_list[index] = -1
 
-    # Check if we have any jobs left to suggest
     if len(returned_job_indices) >= len(cos_similarities_list):
         return None
 
-    # Get the top job with the highest similarity score
-    top_job_index = cos_similarities_list.index(max(cos_similarities_list))
+    max_cos_similarity = max(cos_similarities_list)
+    if max_cos_similarity < cos_similarity_threshold:
+        return None  
 
-    # Remember this index so we don't return this job again
+    top_job_index = cos_similarities_list.index(max_cos_similarity)
     returned_job_indices.append(top_job_index)
-
     return jobs[top_job_index]
 
 
 def generate_response(query):
-    global context, last_query
-    doc = nlp(query)
+    global context, last_query, returned_job_indices
 
-    entities = [str(ent).lower() for ent in doc.ents]
-    keywords = ["job", "internship", "work", "career", "opportunity", "role","duty","occupation","position","responsibility"]
+    if query.lower() == "get started":
+        context = "asked_for_job_details"
+        last_query = ""
+        returned_job_indices = []
+        return "Could you please provide details about the type of job or internship you're looking for?"
 
-    if context == "asked_for_job_details":
-        if 'next' in query.lower():
+    elif context == "asked_for_job_details":
+        if query.lower() == 'next':
             if len(returned_job_indices) < len(jobs):
-                job = search_jobs(last_query)  # Use the last query instead of the current one
-                if job is not None:  # Check if job is None
-                    return f"I found a job that might match your query! Please visit this link: {job['link']}\n\nPlease indicate your next step by typing one of the following options:\n\n<b>Yes</b> if this job meets your expectations and you don't need to explore other options.\n<b>Next</b> if you want to view another job based on your initial preferences.\n<b>Refine</b> if you'd like to add more specific criteria to better suit your job search.\n<b>Restart</b> if you prefer to begin a new search for a different job role."
+                job = search_jobs(last_query)  
+                if job is not None:  
+                    job['link'] = job['link'].replace('Link: ', '')
+                    return f"I found a job that might match your query!<br/><br/>Please visit this link: <a href='{job['link']}'>{job['link']}</a><br/><br/>Please indicate your next step by typing one of the following options:<br/><b>Yes</b> if this job meets your expectations and you don't need to explore other options.<br/><b>Next</b> if you want to view another job based on your initial preferences.<br/><b>Refine</b> if you'd like to add more specific criteria to better suit your job search.<br/><b>Restart</b> if you prefer to begin a new search for a different job role."
                 else:
                     context = ""
-                    return "I'm sorry, I couldn't find any more jobs that match your query."
+                    last_query = ""
+                    return "I'm sorry, I couldn't find any more jobs that match your query. Type 'Get started' to begin."
             else:
-                return "I'm sorry, I couldn't find any more jobs that match your query."
-        elif 'yes' in query.lower():
+                context = ""
+                last_query = ""
+                return "I'm sorry, I couldn't find any more jobs that match your query. Type 'Get started' to begin."
+        elif query.lower() == 'yes':
             context = ""
+            last_query = ""
             return "Great! If you need more assistance, type 'Get started'."
-        elif 'refine' in query.lower():
+        
+
+        elif query.lower() == 'refine':
             context = "refine_search"
             return "Please provide additional details to refine your job search."
-        elif 'restart' in query.lower():
+        elif query.lower() == 'restart':
             context = ""
-            returned_job_indices.clear()
             last_query = ""
             return "Let's start a new search. Type 'Get started' to begin."
         else:
-            job = search_jobs(query)
+            last_query = query
+            job = search_jobs(last_query)
             if job is not None:
                 context = "asked_for_job_details"
-                return f"I found a job that might match your query! Please visit this link: {job['link']}\n\nPlease indicate your next step by typing one of the following options:\n\n<b>Yes</b> if this job meets your expectations and you don't need to explore other options.\n<b>Next</b> if you want to view another job based on your initial preferences.\n<b>Refine</b> if you'd like to add more specific criteria to better suit your job search.\n<b>Restart</b> if you prefer to begin a new search for a different job role."
+                job['link'] = job['link'].replace('Link: ', '')
+                return f"I found a job that might match your query!<br/><br/>Please visit this link: <a href='{job['link']}'>{job['link']}</a><br/><br/>Please indicate your next step by typing one of the following options:<br/><b>Yes</b> if this job meets your expectations and you don't need to explore other options.<br/><b>Next</b> if you want to view another job based on your initial preferences.<br/><b>Refine</b> if you'd like to add more specific criteria to better suit your job search.<br/><b>Restart</b> if you prefer to begin a new search for a different job role."
             else:
                 context = "asked_for_job_details"
-                return "I'm sorry, I couldn't find any jobs that match your query. Could you please provide more details about the type of job or internship you're looking for?" 
+                return "I'm sorry, I couldn't find any jobs that match your query. Type 'restart' to begin a new search" 
+            
 
     elif context == "refine_search":
         last_query += " " + query
         job = search_jobs(last_query)
         if job is not None:
             context = "asked_for_job_details"
-            return f"I found a job that might match your query! Please visit this link: {job['link']}\n\nPlease indicate your next step by typing one of the following options:\n\n<b>Yes</b> if this job meets your expectations and you don't need to explore other options.\n<b>Next</b> if you want to view another job based on your initial preferences.\n<b>Refine</b> if you'd like to add more specific criteria to better suit your job search.\n<b>Restart</b> if you prefer to begin a new search for a different job role."
+            job['link'] = job['link'].replace('Link: ', '')
+            return f"I found a job that might match your query!<br/><br/>Please visit this link: <a href='{job['link']}'>{job['link']}</a><br/><br/>Please indicate your next step by typing one of the following options:<br/><b>Yes</b> if this job meets your expectations and you don't need to explore other options.<br/><b>Next</b> if you want to view another job based on your initial preferences.<br/><b>Refine</b> if you'd like to add more specific criteria to better suit your job search.<br/><b>Restart</b> if you prefer to begin a new search for a different job role."
         else:
             context = "refine_search"
             return "I'm sorry, I couldn't find any jobs that match your new criteria. Could you please provide more details to refine your job search?"
 
-    elif query.lower() == "get started":
-        context = "asked_for_job_details"
-        return "Could you please provide details about the type of job or internship you're looking for?"
-
+    
     else:
-        # When the query is not related to a job search, use ChatterBot to generate a response.
         context = ""
         return "Type 'Get started' to begin."
-
 
 @app.route('/api/ask', methods=['POST'])
 def ask():
